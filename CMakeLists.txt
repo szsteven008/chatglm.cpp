@@ -61,6 +61,8 @@ if (CHATGLM_ENABLE_EXAMPLES)
     endif ()
     add_executable(perplexity tests/perplexity.cpp)
     target_link_libraries(perplexity PRIVATE chatglm ${CHATGLM_OPENMP_TARGET})
+
+    add_subdirectory(examples/server)
 endif ()
 
 # GoogleTest
