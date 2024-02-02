@@ -1,3 +1,6 @@
+#ifndef _UTILS_H
+#define _UTILS_H
+
 #include <iostream>
 #include <deque>
 #include <thread>
@@ -88,3 +91,5 @@ class ServerResponseTaskQueue {
             }
         }
 };
+
+#endif
