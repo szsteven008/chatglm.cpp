@@ -7,11 +7,14 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
+#include <grpcpp/grpcpp.h>
 
 #include "httplib.h"
 #include "json.hpp"
 #include "utils.h"
 #include "../../chatglm.h"
+#include "service.h"
 
 using namespace std;
 using namespace httplib;
@@ -29,10 +32,13 @@ struct ServerConfig {
     float _temp;
     float _repeat_penalty;
     int _threads;
+    
+    string _grpc_host;
 
     ServerConfig(string host, string model, 
                  int max_length, int max_context_length, 
-                 int top_k, float top_p, float temp, float repeat_penalty, int threads) {
+                 int top_k, float top_p, float temp, 
+                 float repeat_penalty, int threads, string grpc_host) {
         pair<string, string> h = absl::StrSplit(host, ':');
         _host = h.first;
         _port = h.second == "" ? 8080 : atoi(h.second.c_str());
@@ -44,6 +50,8 @@ struct ServerConfig {
         _temp = temp;
         _repeat_penalty = repeat_penalty;
         _threads = threads;
+
+        _grpc_host = grpc_host;
     }
 
     void dump() {
@@ -57,6 +65,8 @@ struct ServerConfig {
         cout << "config temp: " << _temp << endl;
         cout << "config repeat_penalty: " << _repeat_penalty << endl;
         cout << "config threads: " << _threads << endl;
+
+        cout << "config grpc host: " << _grpc_host << endl;
     }
 };
 
@@ -69,6 +79,8 @@ ABSL_FLAG(float, top_p, 0.7, "top-p sampling");
 ABSL_FLAG(float, temp, 0.95, "temperature");
 ABSL_FLAG(float, repeat_penalty, 1.0, "penalize repeat sequence of tokens");
 ABSL_FLAG(int16_t, threads, 0, "number of threads for inference");
+
+ABSL_FLAG(string, grpc_host, "127.0.0.1:50051", "ip:port");
 
 std::string dump_headers(const Headers &headers) {
     std::string s;
@@ -198,6 +210,27 @@ int start_loop(ServerConfig &conf, chatglm::Pipeline &pl,
     return 0;
 }
 
+void run_grpc_server(ServerRequestTaskQueue &request_task_queue, 
+                     ServerResponseTaskQueue &response_task_queue, 
+                     string host) {
+    BackendServiceImpl service(&request_task_queue, &response_task_queue);
+
+    grpc::EnableDefaultHealthCheckService(true);
+    grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+    ServerBuilder builder;
+    // Listen on the given address without any authentication mechanism.
+    builder.AddListeningPort(host, grpc::InsecureServerCredentials());
+    // Register "service" as the instance through which we'll communicate with
+    // clients. In this case it corresponds to an *synchronous* service.
+    builder.RegisterService(&service);
+    // Finally assemble the server.
+    std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+    std::cout << "Grpc Server listening on " << host << std::endl; 
+    // Wait for the server to shutdown. Note that some other thread must be
+    // responsible for shutting down the server for this call to ever return.
+    server->Wait();
+}
+
 int main(int argc, char * argv[]) {
     absl::ParseCommandLine(argc, argv);
 
@@ -205,13 +238,13 @@ int main(int argc, char * argv[]) {
                       absl::GetFlag(FLAGS_max_length), absl::GetFlag(FLAGS_max_context_length),
                       absl::GetFlag(FLAGS_top_k), absl::GetFlag(FLAGS_top_p),
                       absl::GetFlag(FLAGS_temp), absl::GetFlag(FLAGS_repeat_penalty),
-                      absl::GetFlag(FLAGS_threads));
+                      absl::GetFlag(FLAGS_threads), absl::GetFlag(FLAGS_grpc_host));
     conf.dump();
 
     chatglm::Pipeline pl(conf._model_file);
     cout << "load model ok." << endl;
 
-    Server svr;
+    httplib::Server svr;
     ServerRequestTaskQueue request_task_queue;
     ServerResponseTaskQueue response_task_queue;
 
@@ -268,14 +301,21 @@ int main(int argc, char * argv[]) {
         return -1;
     }
 
-    cout << "server listen on " << conf._host << ":" << conf._port << endl;
+    cout << "http server listen on " << conf._host << ":" << conf._port << endl;
 
     thread t([&] {
         svr.listen_after_bind();
         return 0;
     });
 
+    thread t_grpc([&] {
+        run_grpc_server(request_task_queue, response_task_queue, conf._grpc_host);
+        return 0;
+    });
+
     start_loop(conf, pl, request_task_queue, response_task_queue);
+
+    t_grpc.join();
 
     t.join();
 
