@@ -19,8 +19,8 @@ public:
 
 public:
     grpc::Status Health(ServerContext* context, 
-                        const backend::HealthMessage* request, 
-                        backend::Reply* reply);
+                        const HealthMessage* request, 
+                        Reply* reply);
 
     grpc::Status Predict(ServerContext* context, 
                          const PredictOptions* request, 
