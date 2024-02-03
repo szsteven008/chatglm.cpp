@@ -11,6 +11,14 @@ BackendServiceImpl::BackendServiceImpl(ServerRequestTaskQueue * request_task_que
 BackendServiceImpl::~BackendServiceImpl() {
 }
 
+grpc::Status BackendServiceImpl::Health(ServerContext* context, 
+                    const backend::HealthMessage* request, 
+                    backend::Reply* reply) {
+    // Implement Health RPC
+    reply->set_message("OK");
+    return Status::OK;
+}
+
 grpc::Status BackendServiceImpl::Predict(ServerContext* context, 
                                          const PredictOptions* request, 
                                          Reply* response) {
