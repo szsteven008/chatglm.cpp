@@ -19,6 +19,14 @@ grpc::Status BackendServiceImpl::Health(ServerContext* context,
     return Status::OK;
 }
 
+grpc::Status BackendServiceImpl::LoadModel(ServerContext* context, 
+                                           const ModelOptions* request, 
+                                           Result* result) {
+    result->set_message("Loading succeeded");
+    result->set_success(true);
+    return Status::OK;
+}
+
 grpc::Status BackendServiceImpl::Predict(ServerContext* context, 
                                          const PredictOptions* request, 
                                          Reply* response) {

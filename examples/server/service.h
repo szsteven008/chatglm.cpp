@@ -22,6 +22,10 @@ public:
                         const HealthMessage* request, 
                         Reply* response);
 
+    grpc::Status LoadModel(ServerContext* context, 
+                           const ModelOptions* request, 
+                           Result* result);
+  
     grpc::Status Predict(ServerContext* context, 
                          const PredictOptions* request, 
                          Reply* response);
