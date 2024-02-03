@@ -18,6 +18,10 @@ public:
     ~BackendServiceImpl();
 
 public:
+    grpc::Status Health(ServerContext* context, 
+                        const backend::HealthMessage* request, 
+                        backend::Reply* reply);
+
     grpc::Status Predict(ServerContext* context, 
                          const PredictOptions* request, 
                          Reply* response);
