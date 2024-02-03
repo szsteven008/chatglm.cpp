@@ -20,7 +20,7 @@ public:
 public:
     grpc::Status Health(ServerContext* context, 
                         const HealthMessage* request, 
-                        Reply* reply);
+                        Reply* response);
 
     grpc::Status Predict(ServerContext* context, 
                          const PredictOptions* request, 
