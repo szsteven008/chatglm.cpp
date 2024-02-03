@@ -12,10 +12,10 @@ BackendServiceImpl::~BackendServiceImpl() {
 }
 
 grpc::Status BackendServiceImpl::Health(ServerContext* context, 
-                    const backend::HealthMessage* request, 
-                    backend::Reply* reply) {
+                    const HealthMessage* request, 
+                    Reply* response) {
     // Implement Health RPC
-    reply->set_message("OK");
+    response->set_message("OK");
     return Status::OK;
 }
 
